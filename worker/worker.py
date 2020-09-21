@@ -16,7 +16,7 @@ os.environ["ADVERSARY_CONSENT"] = "1"
 
 port = 3035
 sckt = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-sckt.bind(('localhost', port))
+sckt.bind(('0.0.0.0', port))
 sckt.listen()
 
 
