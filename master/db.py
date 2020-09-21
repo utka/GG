@@ -1,6 +1,8 @@
 import mysql.connector
 import random
 import string
+import subprocess
+import socket 
 
 import datetime
 import os
@@ -46,7 +48,6 @@ class DB ():
             raise e
         return self.mycursor
 
-
 class NayDuckDB (DB):
     def __init__(self):
         self.host=os.environ['NAYDUCK_DB_HOST']
@@ -78,15 +79,26 @@ class MasterDB (DB):
         return request_id
 
     def get_instances(self, num_nodes, request_id):
+        sql = "SELECT ip FROM instances WHERE status='DISCONNECTED' LIMIT %s"
+        result =  self.execute_sql(sql,(num_nodes,)).fetchall()
+        for r in result:
+            if ping(r['ip']):
+                sql = "UPDATE instances set status='AVAILABLE' WHERE ip=%s"
+                self.execute_sql(sql,(r['ip'],))
         sql = "SELECT ip FROM instances WHERE status='AVAILABLE' LIMIT %s"
         result =  self.execute_sql(sql,(num_nodes,)).fetchall()
+        for r in result:
+            if not ping(r['ip']):
+                sql = "UPDATE instances set status='DISCONNECTED' WHERE ip=%s"  
+                self.execute_sql(sql,(r['ip'],))
+                return []
         if len(result) < num_nodes:
             return []
         instances = []
-        for i in range(0, len(result)):
+        for r in result:
             sql = "UPDATE instances SET status='TAKEN', request_id=%s WHERE ip=%s"
-            self.execute_sql(sql,(request_id, result[i]['ip']))
-            instances.append(result[i]['ip'])
+            self.execute_sql(sql,(request_id, r['ip']))
+            instances.append(r['ip'])
         return instances
     
     def get_instances_status(self, ips):
@@ -108,5 +120,12 @@ class MasterDB (DB):
     def free_instances(self, request_id):       
         sql = "UPDATE instances SET status = 'AVAILABLE', request_id=null WHERE request_id = %s"
         self.execute_sql(sql, (request_id,))
-        
 
+
+def ping(ip):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    result = sock.connect_ex(('ip', 3035))
+    if result == 0:
+        return True
+    else:
+        return False

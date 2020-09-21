@@ -1,3 +1,4 @@
+import atexit
 import os
 import socket
 import sys
@@ -12,6 +13,12 @@ from multiprocessing import Process
 import requests
 
 os.environ["ADVERSARY_CONSENT"] = "1"
+
+port = 3035
+sckt = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+sckt.bind(('localhost', port))
+sckt.listen()
+
 
 def enough_space(filename="/datadrive"):
     try:
@@ -82,6 +89,7 @@ def build(sha):
 def keep_pulling():
     ip_address = requests.get('https://checkip.amazonaws.com').text.strip()
     print(ip_address)
+    server = WorkerDB()
     while True:
         server = WorkerDB()
         status, request_id = server.get_instance_status(ip_address)
@@ -96,8 +104,16 @@ def keep_pulling():
                     server.update_instance_status(ip_address, 'READY')
                 else:
                     server.update_instance_status(ip_address, 'BUILD FAILED')
+            else:
+                server.update_instance_status(ip_address, 'AVAILABLE')
         time.sleep(5)
 
+def cleanup():
+    sckt.close()
+    bash(f'''killall -9 neard
+    killall -9 cargo
+    ''')
 
 if __name__ == "__main__":
+    atexit.register(cleanup)
     keep_pulling()
