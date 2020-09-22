@@ -37,7 +37,7 @@ def upload_to_remote(ip, fl_name, cnt):
     with open(ip, "w") as fl:
         fl.write(cnt) 
     res = bash(f'''
-        scp -o StrictHostKeyChecking=no {fl_name} azureuser@{ip}:~/.near/{fl_name}
+        scp -o StrictHostKeyChecking=no {ip} azureuser@{ip}:~/.near/{fl_name}
     ''')
     print(res)
     return {'stderr': res.stderr}
@@ -47,7 +47,7 @@ def save_logs(request_id, ips):
     blob_service_client = BlobServiceClient.from_connection_string(AZURE)
     cnt_settings = ContentSettings(content_type="text/plain")
     for ip in ips:
-        fl_name = request_id + '_' + ip + "_log"
+        fl_name = str(request_id) + '_' + ip + "_log"
         res = bash(f'''
             scp -o StrictHostKeyChecking=no azureuser@{ip}:~/.testnode_log {fl_name}
         ''')
@@ -57,6 +57,7 @@ def save_logs(request_id, ips):
                 blob_client.upload_blob(f, content_settings=cnt_settings)
                 s3 = blob_client.url
             s3s.append(s3)
+            bash(f'''rm {fl_name}''')
     return s3s
 
 @app.route('/request_a_run', methods=['POST', 'GET'])
