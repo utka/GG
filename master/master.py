@@ -42,12 +42,12 @@ def upload_to_remote(ip, fl_name, cnt):
     print(res)
     return {'stderr': res.stderr}
 
-def save_logs(ips):
+def save_logs(request_id, ips):
     s3s = []
     blob_service_client = BlobServiceClient.from_connection_string(AZURE)
     cnt_settings = ContentSettings(content_type="text/plain")
     for ip in ips:
-        fl_name = ip + "_log"
+        fl_name = request_id + '_' + ip + "_log"
         res = bash(f'''
             scp -o StrictHostKeyChecking=no azureuser@{ip}:~/.testnode_log {fl_name}
         ''')
@@ -126,7 +126,7 @@ def cancel_the_run():
     for ip in ips:
         run_remote_cmd(ip, "killall -9 neard")
         run_remote_cmd(ip, "killall -9 cargo")
-    logs = save_logs(ips)
+    logs = save_logs(request_json['request_id'], ips)
     server.free_instances(request_json['request_id'])
     return jsonify({'logs': logs})
 
