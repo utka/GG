@@ -6,10 +6,14 @@ import json
 
 from db import MasterDB
 from db import NayDuckDB
+from azure.storage.blob import BlobServiceClient, ContentSettings
 
 app = Flask(__name__)
 
 app.config['TEMPLATES_AUTO_RELOAD'] = True
+
+AZURE = os.getenv('AZURE_STORAGE_CONNECTION_STRING')
+
 
 def is_allowed(token):
     allowed = False
@@ -23,20 +27,35 @@ def is_allowed(token):
 def run_remote_cmd(ip, cmd):
     print(cmd)
     res = bash(f'''
-        ssh azureuser@{ip} \'export PATH=$HOME/.cargo/bin:$PATH; {cmd}  &>>~/.testnode_log &\' 
+        ssh -o StrictHostKeyChecking=no azureuser@{ip} \'export PATH=$HOME/.cargo/bin:$PATH; {cmd}  &>>~/.testnode_log &\' 
     ''')
     print(res)
     return {'stderr': res.stderr}
 
 
 def upload_to_remote(ip, fl_name, cnt):
-    with open(fl_name, "w") as fl:
+    with open(ip, "w") as fl:
         fl.write(cnt) 
     res = bash(f'''
-        scp {fl_name} azureuser@{ip}:~/.near
+        scp -o StrictHostKeyChecking=no {fl_name} azureuser@{ip}:~/.near/{fl_name}
     ''')
     print(res)
     return {'stderr': res.stderr}
+
+def save_logs(ips):
+    s3s = []
+    for ip in ips:
+        res = bash(f'''
+            scp -o StrictHostKeyChecking=no azureuser@{ip}:~/.testnode_log {ip}
+        ''')
+        blob_service_client = BlobServiceClient.from_connection_string(AZURE)
+        cnt_settings = ContentSettings(content_type="text/plain")
+        blob_client = blob_service_client.get_blob_client(container="logs", blob=ip)
+        with open(ip, 'rb') as f:
+            blob_client.upload_blob(f, content_settings=cnt_settings)
+            s3 = blob_client.url
+        s3s.append(s3)
+    return s3s
 
 @app.route('/request_a_run', methods=['POST', 'GET'])
 def request_a_run():
@@ -105,8 +124,9 @@ def cancel_the_run():
     for ip in ips:
         run_remote_cmd(ip, "killall -9 neard")
         run_remote_cmd(ip, "killall -9 cargo")
+    logs = save_logs(ips)
     server.free_instances(request_json['request_id'])
-    return jsonify({})
+    return jsonify({'logs': logs})
 
 @app.route('/run_cmd', methods=['POST', 'GET'])
 def run_cmd():
@@ -139,5 +159,5 @@ def cleanup():
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', debug=True)
+    app.run(host='0.0.0.0')
     

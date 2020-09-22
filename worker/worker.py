@@ -86,10 +86,13 @@ def build(sha):
             return ''    
 
 
-def keep_pulling():
-    ip_address = requests.get('https://checkip.amazonaws.com').text.strip()
-    print(ip_address)
+def keep_pulling(ip_address):
     server = WorkerDB()
+    status, request_id = server.get_instance_status(ip_address)
+    if status != 'AVAILABLE':
+        request_status = server.get_request_data(request_id)['status']
+        if request_status == 'CANCELED':
+            server.update_instance_status(ip_address, 'AVAILABLE')
     while True:
         server = WorkerDB()
         status, request_id = server.get_instance_status(ip_address)
@@ -108,12 +111,20 @@ def keep_pulling():
                 server.update_instance_status(ip_address, 'AVAILABLE')
         time.sleep(5)
 
-def cleanup():
+def cleanup(ip_address):
     sckt.close()
     bash(f'''killall -9 neard
+    killall -2 cargo
     killall -9 cargo
     ''')
+    server = WorkerDB()
+    status_updated, _ = server.get_instance_status(ip_address)
+    if status_updated == 'BUILDING':
+         server.update_instance_status(ip_address, 'BUILD FAILED')
+            
 
 if __name__ == "__main__":
-    atexit.register(cleanup)
-    keep_pulling()
+    ip_address = requests.get('https://checkip.amazonaws.com').text.strip()
+    print(ip_address)
+    atexit.register(cleanup, ip_address)
+    keep_pulling(ip_address)
