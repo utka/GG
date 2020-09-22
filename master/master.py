@@ -44,17 +44,19 @@ def upload_to_remote(ip, fl_name, cnt):
 
 def save_logs(ips):
     s3s = []
+    blob_service_client = BlobServiceClient.from_connection_string(AZURE)
+    cnt_settings = ContentSettings(content_type="text/plain")
     for ip in ips:
+        fl_name = ip + "_log"
         res = bash(f'''
-            scp -o StrictHostKeyChecking=no azureuser@{ip}:~/.testnode_log {ip}
+            scp -o StrictHostKeyChecking=no azureuser@{ip}:~/.testnode_log {fl_name}
         ''')
-        blob_service_client = BlobServiceClient.from_connection_string(AZURE)
-        cnt_settings = ContentSettings(content_type="text/plain")
-        blob_client = blob_service_client.get_blob_client(container="logs", blob=ip)
-        with open(ip, 'rb') as f:
-            blob_client.upload_blob(f, content_settings=cnt_settings)
-            s3 = blob_client.url
-        s3s.append(s3)
+        if res.returncode == 0:
+            blob_client = blob_service_client.get_blob_client(container="logs", blob=fl_name)        
+            with open(fl_name, 'rb') as f:
+                blob_client.upload_blob(f, content_settings=cnt_settings)
+                s3 = blob_client.url
+            s3s.append(s3)
     return s3s
 
 @app.route('/request_a_run', methods=['POST', 'GET'])

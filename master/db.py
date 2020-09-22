@@ -124,7 +124,7 @@ class MasterDB (DB):
 
 def ping(ip):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    result = sock.connect_ex(('ip', 3035))
+    result = sock.connect_ex((ip, 3035))
     if result == 0:
         return True
     else:
