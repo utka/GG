@@ -121,6 +121,12 @@ class MasterDB (DB):
         sql = "UPDATE instances SET status = 'AVAILABLE', request_id=null WHERE request_id = %s"
         self.execute_sql(sql, (request_id,))
 
+    def total_nodes(self):       
+        sql = "SELECT COUNT(ip) as count FROM instances"
+        result = self.execute_sql(sql,()).fetchone()
+        return result['count']
+
+
 
 def ping(ip):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

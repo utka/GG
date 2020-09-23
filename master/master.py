@@ -67,6 +67,9 @@ def request_a_run():
     if not permission['allowed']:
         return jsonify({'code': -1, 'err': permission['response']})
     server = MasterDB()
+    num_all_nodes = server.total_nodes()
+    if request_json['num_nodes'] > num_all_nodes:
+        return jsonify({'code': -1, 'err': f'Can not be more then {num_all_nodes} nodes' })
     if not request_json['sha']:
         resp = {'code': 1, 'response': 'Failure. Git sha were not provided.'}
         return jsonify(resp)
