@@ -28,7 +28,7 @@ class DB ():
         mycursor = mydb.cursor(buffered=True, dictionary=True)
         return mydb, mycursor
 
-    def execute_sql(self, sql, val):
+    def execute_sql(self, sql, val=()):
         try:
             print(sql, val)
             self.mycursor.execute(sql, val)
@@ -85,26 +85,25 @@ class MasterDB (DB):
             if ping(r['ip']):
                 sql = "UPDATE instances set status='AVAILABLE' WHERE ip=%s"
                 self.execute_sql(sql,(r['ip'],))
-        sql = "LOCK TABLES instances WRITE"
-        self.execute_sql(sql, ())
-        sql = "SELECT ip FROM instances WHERE status='AVAILABLE' LIMIT %s"
-        result =  self.execute_sql(sql,(num_nodes,)).fetchall()
+        sql = "UPDATE instances SET status='TEMP', request_id=%s WHERE status='AVAILABLE' LIMIT %s"
+        self.execute_sql(sql,(request_id, num_nodes))
+        sql = "SELECT ip FROM instances WHERE request_id=%s"
+        result = self.execute_sql(sql,(request_id,)).fetchall()
         if len(result) < num_nodes:
-            sql = "UNLOCK TABLES"
-            self.execute_sql(sql, ())
+            sql = "UPDATE instances SET status='AVAILABLE', request_id=null WHERE request_id=%s"
+            self.execute_sql(sql, (request_id,))
             return []
         instances = []
         for r in result:
-            sql = "UPDATE instances SET status='TAKEN', request_id=%s WHERE ip=%s"
-            self.execute_sql(sql,(request_id, r['ip']))
             instances.append(r['ip'])
-        sql = "UNLOCK TABLES"
-        self.execute_sql(sql, ())
-        for r in result:
             if not ping(r['ip']):
-                sql = "UPDATE instances set status='DISCONNECTED' and request_id=null WHERE ip=%s"  
+                sql = "UPDATE instances set status='DISCONNECTED', request_id=null WHERE ip=%s"  
                 self.execute_sql(sql,(r['ip'],))
+                sql = "UPDATE instances SET status='AVAILABLE', request_id=null WHERE request_id=%s"
+                self.execute_sql(sql,(request_id,))
                 return []
+        sql = "UPDATE instances SET status='TAKEN' WHERE request_id=%s"
+        self.execute_sql(sql,(request_id,))        
         return instances
     
     def get_instances_status(self, ips):
