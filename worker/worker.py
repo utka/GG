@@ -91,9 +91,10 @@ def keep_pulling(ip_address):
     status, request_id = server.get_instance_status(ip_address)
     while True:
         if status != 'AVAILABLE':
-            request_status = server.get_request_data(request_id)['status']
-            if request_status == 'CANCELED':
-                server.update_instance_status(ip_address, 'AVAILABLE')
+            if request_id:
+                request_status = server.get_request_data(request_id)['status']
+                if request_status == 'CANCELED':
+                    server.update_instance_status(ip_address, 'AVAILABLE')                
         server = WorkerDB()
         status, request_id = server.get_instance_status(ip_address)
         if status == 'TAKEN':
