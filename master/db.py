@@ -85,6 +85,9 @@ class MasterDB (DB):
             if ping(r['ip']):
                 sql = "UPDATE instances set status='AVAILABLE' WHERE ip=%s"
                 self.execute_sql(sql,(r['ip'],))
+        sql = "LOCK TABLES instances WRITE"
+        result =  self.execute_sql(sql, ())
+                
         sql = "SELECT ip FROM instances WHERE status='AVAILABLE' LIMIT %s"
         result =  self.execute_sql(sql,(num_nodes,)).fetchall()
         for r in result:
@@ -99,6 +102,8 @@ class MasterDB (DB):
             sql = "UPDATE instances SET status='TAKEN', request_id=%s WHERE ip=%s"
             self.execute_sql(sql,(request_id, r['ip']))
             instances.append(r['ip'])
+        sql = "UNLOCK TABLES"
+        result =  self.execute_sql(sql, ())
         return instances
     
     def get_instances_status(self, ips):

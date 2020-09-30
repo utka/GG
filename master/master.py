@@ -73,27 +73,13 @@ def request_a_run():
     if not request_json['sha']:
         resp = {'code': 1, 'response': 'Failure. Git sha were not provided.'}
         return jsonify(resp)
-    fetch = bash(f'''
-            rm -rf nearcore
-            git clone https://github.com/nearprotocol/nearcore
-            cd nearcore
-            git fetch 
-            git checkout {request_json['sha']}
-    ''')
-    if fetch.returncode == 0:
-        title = bash(f'''
-            cd nearcore
-            git log --format='%s' {request_json['sha']}^!
-        ''').stdout
-        request_id = server.scheduling_a_run(
+    request_id = server.scheduling_a_run(
                                   sha=request_json['sha'],
                                   num_nodes=request_json['num_nodes'],
-                                  title=title,
+                                  title="",
                                   requester=request_json['requester'])
 
-        resp = {'code': 0, 'request_id': request_id}
-    else:
-        resp = {'code': -1, 'err': fetch.stderr}
+    resp = {'code': 0, 'request_id': request_id}
     return jsonify(resp)
 
 @app.route('/get_instances', methods=['POST', 'GET'])
