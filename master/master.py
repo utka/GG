@@ -110,9 +110,10 @@ def cancel_the_run():
     permission = is_allowed(request_json['token'])
     if not permission['allowed']:
         return jsonify({'code': -1, 'err': permission['response']})
-    
     server = MasterDB()
     ips = server.cancel_the_run(request_json['request_id'])
+    if len(ips) == 0:
+        return jsonify({'logs': []})
     for ip in ips:
         run_remote_cmd(ip, "killall -9 neard")
         run_remote_cmd(ip, "killall -9 cargo")

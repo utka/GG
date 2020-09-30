@@ -116,6 +116,10 @@ class MasterDB (DB):
         return ret
 
     def cancel_the_run(self, request_id):
+        sql = "SELECT status from requests WHERE id = %s"
+        result = self.execute_sql(sql, (request_id,))
+        if result['status'] == 'CANCELED':
+            return []
         sql = "UPDATE requests SET status = 'CANCELED' WHERE id = %s"
         self.execute_sql(sql, (request_id,))
         sql = "SELECT ip from instances WHERE request_id=%s"
