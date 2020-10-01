@@ -52,11 +52,14 @@ def save_logs(request_id, ips):
             scp -o StrictHostKeyChecking=no azureuser@{ip}:~/.testnode_log {fl_name}
         ''')
         if res.returncode == 0:
-            blob_client = blob_service_client.get_blob_client(container="logs", blob=fl_name)        
-            with open(fl_name, 'rb') as f:
-                blob_client.upload_blob(f, content_settings=cnt_settings)
-                s3 = blob_client.url
-            s3s.append(s3)
+            try:
+                blob_client = blob_service_client.get_blob_client(container="logs", blob=fl_name)        
+                with open(fl_name, 'rb') as f:
+                    blob_client.upload_blob(f, content_settings=cnt_settings)
+                    s3 = blob_client.url
+                s3s.append(s3)
+            except Exception as e:
+                print(e)
             bash(f'''rm {fl_name}''')
     return s3s
 
