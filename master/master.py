@@ -77,7 +77,8 @@ def request_a_run():
                                   sha=request_json['sha'],
                                   num_nodes=request_json['num_nodes'],
                                   title="",
-                                  requester=request_json['requester'])
+                                  requester=request_json['requester'], 
+                                  release=request_json['release'])
 
     resp = {'code': 0, 'request_id': request_id}
     return jsonify(resp)

@@ -72,9 +72,9 @@ class MasterDB (DB):
         self.database=os.environ['DB']
         super().__init__(self.host, self.user, self.passwd, self.database)
     
-    def scheduling_a_run(self, sha, num_nodes, title, requester):
-        sql = "INSERT INTO requests ( sha, num_nodes, title, requester, status) values (%s, %s, %s, %s, 'PENDING')"
-        result = self.execute_sql(sql, ( sha, num_nodes, title, requester))
+    def scheduling_a_run(self, sha, num_nodes, title, requester, release):
+        sql = "INSERT INTO requests ( sha, num_nodes, title, requester, status, rel) values (%s, %s, %s, %s, 'PENDING', %s)"
+        result = self.execute_sql(sql, ( sha, num_nodes, title, requester, release))
         request_id = result.lastrowid
         return request_id
 

@@ -47,7 +47,7 @@ class WorkerDB ():
         return result['status'], result['request_id']
 
     def get_request_data(self, request_id):
-        sql = "SELECT sha, status FROM requests WHERE id = %s"
+        sql = "SELECT sha, status, rel FROM requests WHERE id = %s"
         result =  self.execute_sql(sql,(request_id,)).fetchone()
         return result
 

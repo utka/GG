@@ -49,7 +49,7 @@ def install_new_packages(thread_n):
     except Exception as e:
         print(e)
 
-def build(sha):
+def build(sha, release=""):
     if not enough_space():
         print("Not enough space.")
         bld = bash(f'''rm -rf neacore''')
@@ -77,8 +77,8 @@ def build(sha):
             print("Build")
             bld = bash(f'''
                 cd nearcore
-                cargo build -j2 -p neard --features adversarial
-              ''' , **kwargs, login=True)
+                cargo build -j2 -p neard --features adversarial {release}
+              ''' , **kwargs, login=True)}
             print(bld)
             if bld.returncode != 0:
                 bld = bash(f'''rm -rf nearcore''')
@@ -100,7 +100,10 @@ def keep_pulling(ip_address):
         if status == 'TAKEN':
             request_data = server.get_request_data(request_id)
             server.update_instance_status(ip_address, 'BUILDING')
-            err = build(request_data['sha'])
+            release = ""
+            if request_data['rel']:
+                release = "--release"
+            err = build(request_data['sha'], release)
             server = WorkerDB()
             status_updated, request_id_updated = server.get_instance_status(ip_address)
             if status_updated == 'BUILDING' and request_id_updated == request_id:
