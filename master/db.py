@@ -117,13 +117,13 @@ class MasterDB (DB):
 
     def cancel_the_run(self, request_id):
         sql = "SELECT status from requests WHERE id = %s"
-        result = self.execute_sql(sql, (request_id,))
+        result = self.execute_sql(sql, (request_id,)).fetchone()
         if result['status'] == 'CANCELED':
             return []
         sql = "UPDATE requests SET status = 'CANCELED' WHERE id = %s"
         self.execute_sql(sql, (request_id,))
         sql = "SELECT ip from instances WHERE request_id=%s"
-        result = self.execute_sql(sql, (request_id,))
+        result = self.execute_sql(sql, (request_id,)).fetchall()
         return [r['ip'] for r in result ]
 
     def free_instances(self, request_id):       
