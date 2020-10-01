@@ -78,7 +78,7 @@ def build(sha, release=""):
             bld = bash(f'''
                 cd nearcore
                 cargo build -j2 -p neard --features adversarial {release}
-              ''' , **kwargs, login=True)}
+              ''' , **kwargs, login=True)
             print(bld)
             if bld.returncode != 0:
                 bld = bash(f'''rm -rf nearcore''')
