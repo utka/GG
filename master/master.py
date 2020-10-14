@@ -24,10 +24,10 @@ def is_allowed(token):
     allowed = True
     return {'allowed': allowed}
 
-def run_remote_cmd(ip, cmd):
+def run_remote_cmd(ip, cmd, log='~/.testnode_log'):
     print(cmd)
     res = bash(f'''
-        ssh -o StrictHostKeyChecking=no azureuser@{ip} \'export PATH=$HOME/.cargo/bin:$PATH; {cmd}  &>>~/.testnode_log &\' 
+        ssh -o StrictHostKeyChecking=no azureuser@{ip} \'export PATH=$HOME/.cargo/bin:$PATH; {cmd}  &>>{log} &\' 
     ''')
     print(res)
     return {'stderr': res.stderr}
@@ -47,20 +47,21 @@ def save_logs(request_id, ips):
     blob_service_client = BlobServiceClient.from_connection_string(AZURE)
     cnt_settings = ContentSettings(content_type="text/plain")
     for ip in ips:
-        fl_name = str(request_id) + '_' + ip + "_log"
-        res = bash(f'''
-            scp -o StrictHostKeyChecking=no azureuser@{ip}:~/.testnode_log {fl_name}
-        ''')
-        if res.returncode == 0:
-            try:
-                blob_client = blob_service_client.get_blob_client(container="logs", blob=fl_name)        
-                with open(fl_name, 'rb') as f:
-                    blob_client.upload_blob(f, content_settings=cnt_settings)
-                    s3 = blob_client.url
-                s3s.append(s3)
-            except Exception as e:
-                print(e)
-            bash(f'''rm {fl_name}''')
+        for log in ['testnode_log', 'companion_log']:
+            fl_name = str(request_id) + '_' + ip + "_" + log 
+            res = bash(f'''
+                scp -o StrictHostKeyChecking=no azureuser@{ip}:~/.{log} {fl_name}
+            ''')
+            if res.returncode == 0:
+                try:
+                    blob_client = blob_service_client.get_blob_client(container="logs", blob=fl_name)        
+                    with open(fl_name, 'rb') as f:
+                        blob_client.upload_blob(f, content_settings=cnt_settings)
+                        s3 = blob_client.url
+                    s3s.append(s3)
+                except Exception as e:
+                    print(e)
+                bash(f'''rm {fl_name}''')
     return s3s
 
 @app.route('/request_a_run', methods=['POST', 'GET'])
@@ -121,6 +122,7 @@ def cancel_the_run():
     for ip in ips:
         run_remote_cmd(ip, "killall -9 neard")
         run_remote_cmd(ip, "killall -9 cargo")
+        run_remote_cmd(ip, "pkill -9 -e -f companion.py")
     logs = save_logs(request_json['request_id'], ips)
     server.free_instances(request_json['request_id'])
     return jsonify({'logs': logs})
@@ -134,6 +136,15 @@ def run_cmd():
     resp = run_remote_cmd(request_json['ip'], request_json['cmd'])
     return jsonify(resp)
 
+@app.route('/companion', methods=['POST', 'GET'])
+def companion():
+    request_json = request.get_json(force=True)
+    permission = is_allowed(request_json['token'])
+    if not permission['allowed']:
+        return jsonify({'code': -1, 'err': permission['response']})
+    cmd = 'python /datadrive/testnodes/worker/nearcore/pytest/tests/companion.py ' + request_json['args']
+    resp = run_remote_cmd(request_json['ip'], cmd, log='~/.companion_log')
+    return jsonify(resp)
 
 @app.route('/upload', methods=['POST', 'GET'])
 def upload():
@@ -144,14 +155,13 @@ def upload():
     resp = upload_to_remote(request_json['ip'], request_json['fl_name'], request_json['cnt'])
     return jsonify(resp)
 
-
 @app.route('/cleanup', methods=['POST', 'GET'])
 def cleanup():
     request_json = request.get_json(force=True)
     permission = is_allowed(request_json['token'])
     if not permission['allowed']:
         return jsonify({'code': -1, 'err': permission['response']})
-    resp = run_remote_cmd(request_json['ip'], "rm -r ~/.testnode_log ~/.near/*")
+    resp = run_remote_cmd(request_json['ip'], "rm -r ~/.testnode_log ~/.companion_log ~/.near/*")
     return jsonify(resp)
 
 
